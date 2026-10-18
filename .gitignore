@@ -1,0 +1,5 @@
+# Downloaded/extracted firmware analysis artifacts — large, third-party, not source
+fw_download/
+*.bin
+*.zip
+*.img
