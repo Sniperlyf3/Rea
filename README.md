@@ -52,6 +52,18 @@ build/build-native.sh                   # stages runtimes/<rid>/native/
 build/pack-nuget.sh                     # -> artifacts/QuicMedia.0.1.0.nupkg  (needs dotnet SDK)
 ```
 
+### Android (cross-build)
+
+```bash
+# needs the Android NDK (ANDROID_NDK_HOME) and cargo-ndk (cargo install cargo-ndk)
+build/build-android.sh --abis "arm64-v8a x86_64" --api 21
+# stages dotnet/QuicMedia/runtimes/android-{arm64,x64}/native/libquicmedia.so
+```
+
+The Android build defaults to empty features (transport + data channel +
+passthrough + null audio). Opus and the cpal/oboe audio backend are opt-in and
+need extra NDK/JNI setup — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#android).
+
 ## Run the demo
 
 ```bash

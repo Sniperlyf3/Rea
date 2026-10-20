@@ -149,6 +149,27 @@ of the pin (or trust anchor) is the application's responsibility.
 > iOS forbids loading external dynamic libraries, so the `staticlib` output is
 > linked into the app; the other platforms ship the `cdylib`.
 
+### Android
+
+`build/build-android.sh` cross-compiles each ABI with **cargo-ndk** and stages it
+into `dotnet/QuicMedia/runtimes/android-<arch>/native/libquicmedia.so`, which .NET
+for Android (MAUI) bundles into the APK from the NuGet package. ABI → RID:
+`arm64-v8a → android-arm64`, `x86_64 → android-x64`, `armeabi-v7a → android-arm`,
+`x86 → android-x86`. CI builds `arm64-v8a` and `x86_64` against NDK r26d.
+
+The Android build uses **empty default features** for a clean, dependency-light
+cross-compile (pure-Rust QUIC transport + reliable data channel + PCM passthrough
++ null audio backend — everything except real device audio and Opus). Enabling
+the extra features on Android is opt-in and needs more setup:
+
+- **`opus-codec`** — audiopus builds libopus through cmake; pass the Android
+  cmake toolchain so the C build targets the NDK.
+- **`cpal-backend`** — cpal's Android backend uses the `oboe` C++ library and
+  needs a `JavaVM` + `Context`. In a MAUI app, initialise `ndk_context` with the
+  app's `JavaVM`/`Context` before starting a session; until then, use the null
+  backend. (This is why audio capture/render on Android is an app-integration
+  step rather than something the headless library can do on its own.)
+
 ## Feature flags
 
 - `opus-codec` — real Opus (bundled libopus; needs a C toolchain + cmake).
