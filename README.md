@@ -56,7 +56,7 @@ build/pack-nuget.sh                     # -> artifacts/QuicMedia.0.1.0.nupkg  (n
 
 ```bash
 # needs the Android NDK (ANDROID_NDK_HOME) and cargo-ndk (cargo install cargo-ndk)
-build/build-android.sh --abis "arm64-v8a x86_64" --api 21
+build/build-android.sh --abis "arm64-v8a x86_64"
 # stages dotnet/QuicMedia/runtimes/android-{arm64,x64}/native/libquicmedia.so
 ```
 

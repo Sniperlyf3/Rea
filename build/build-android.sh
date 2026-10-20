@@ -5,7 +5,10 @@
 # Android (MAUI) consumes from a NuGet package.
 #
 # Usage:
-#   build/build-android.sh [--abis "arm64-v8a x86_64"] [--api 21] [--features <csv>] [--profile release|dev]
+#   build/build-android.sh [--abis "arm64-v8a x86_64"] [--features <csv>] [--profile release|dev]
+#
+# minSdk/API level is left at cargo-ndk's default (21). Set the app's minSdk in
+# its Gradle/MAUI manifest; cargo-ndk 4.x does not take a -p/--platform here.
 #
 # Requirements:
 #   - Android NDK (ANDROID_NDK_HOME or ANDROID_NDK_ROOT set)
@@ -23,14 +26,12 @@ RUST_DIR="$ROOT/rust"
 STAGE_ROOT="$ROOT/dotnet/QuicMedia/runtimes"
 
 ABIS="arm64-v8a x86_64"
-API="${ANDROID_API:-21}"
 FEATURES="${FEATURES:-}"
 PROFILE="release"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --abis)     ABIS="$2"; shift 2 ;;
-    --api)      API="$2"; shift 2 ;;
     --features) FEATURES="$2"; shift 2 ;;
     --profile)  PROFILE="$2"; shift 2 ;;
     *) echo "unknown arg: $1" >&2; exit 2 ;;
@@ -80,8 +81,8 @@ BUILD_ARGS=(build -p quicmedia-ffi)
 [[ "$PROFILE" == "release" ]] && BUILD_ARGS+=(--release)
 [[ -n "$FEATURES" ]] && BUILD_ARGS+=(--features "$FEATURES")
 
-echo ">> cargo ndk ${NDK_T_ARGS[*]} -p $API -o $TMP/jniLibs ${BUILD_ARGS[*]}"
-( cd "$RUST_DIR" && cargo ndk "${NDK_T_ARGS[@]}" -p "$API" -o "$TMP/jniLibs" "${BUILD_ARGS[@]}" )
+echo ">> cargo ndk ${NDK_T_ARGS[*]} -o $TMP/jniLibs ${BUILD_ARGS[*]}"
+( cd "$RUST_DIR" && cargo ndk "${NDK_T_ARGS[@]}" -o "$TMP/jniLibs" "${BUILD_ARGS[@]}" )
 
 # cargo-ndk lays files out as jniLibs/<abi>/libquicmedia.so; restage into runtimes/<rid>/native.
 for abi in $ABIS; do

@@ -39,6 +39,11 @@ jobs:
         working-directory: .
         run: sudo apt-get update && sudo apt-get install -y libasound2-dev
 
+      - name: Install autotools (macOS, for Opus/libopus build)
+        if: runner.os == 'macOS'
+        working-directory: .
+        run: brew install autoconf automake libtool
+
       - name: rustfmt
         if: runner.os == 'Linux'
         run: cargo fmt --all --check
@@ -119,7 +124,7 @@ jobs:
       - name: Build Android native libraries (arm64-v8a, x86_64)
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: ./build/build-android.sh --abis "arm64-v8a x86_64" --api 21
+        run: ./build/build-android.sh --abis "arm64-v8a x86_64"
 
       - name: Upload Android native libraries
         uses: actions/upload-artifact@v4
