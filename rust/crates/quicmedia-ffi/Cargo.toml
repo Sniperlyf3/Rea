@@ -1,0 +1,23 @@
+[package]
+name = "quicmedia-ffi"
+description = "C ABI for quicmedia-core, consumed by the QuicMedia .NET NuGet package."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+name = "quicmedia"
+# cdylib -> libquicmedia.so / quicmedia.dll / libquicmedia.dylib (desktop + Android)
+# staticlib -> libquicmedia.a (iOS static linking)
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+quicmedia-core = { path = "../quicmedia-core" }
+
+[features]
+default = []
+opus-codec = ["quicmedia-core/opus-codec"]
+cpal-backend = ["quicmedia-core/cpal-backend"]

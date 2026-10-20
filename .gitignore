@@ -1,5 +1,26 @@
-# Downloaded/extracted firmware analysis artifacts — large, third-party, not source
+# ---- Abandoned firmware-analysis artifacts (large, third-party, not source) ----
 fw_download/
 *.bin
-*.zip
 *.img
+
+# ---- Rust ----
+/rust/target/
+**/target/
+Cargo.lock.bak
+
+# ---- .NET ----
+bin/
+obj/
+*.user
+*.nupkg
+*.snupkg
+artifacts/
+
+# ---- Native build outputs collected for packaging ----
+/dotnet/QuicMedia/runtimes/
+
+# ---- Editor / OS ----
+.DS_Store
+.idea/
+.vscode/
+*.swp

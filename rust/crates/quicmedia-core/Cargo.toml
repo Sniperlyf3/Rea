@@ -1,0 +1,38 @@
+[package]
+name = "quicmedia-core"
+description = "QUIC-based real-time audio + data transport core (capture → Opus → QUIC datagrams → jitter buffer → render), native data path."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+quinn = { workspace = true }
+rustls = { workspace = true }
+rcgen = { workspace = true }
+rustls-pki-types = { workspace = true }
+bytes = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+crossbeam-channel = { workspace = true }
+sha2 = "0.10"
+
+# Optional native audio backend (real hardware devices).
+# Requires platform audio dev headers at build time (e.g. libasound2-dev on Linux).
+cpal = { workspace = true, optional = true }
+
+# Optional Opus codec (bundled libopus, built via cmake/cc).
+audiopus = { workspace = true, optional = true }
+
+[features]
+# Headless-safe defaults: builds with no system audio deps.
+# Real deployments enable `opus-codec` and `cpal-backend`.
+default = []
+opus-codec = ["dep:audiopus"]
+cpal-backend = ["dep:cpal"]
+
+[dev-dependencies]
+tokio = { version = "1.40", features = ["rt-multi-thread", "sync", "time", "macros", "test-util"] }
