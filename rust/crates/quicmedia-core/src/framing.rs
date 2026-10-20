@@ -63,18 +63,27 @@ impl MediaHeader {
     /// Parse a header from the front of `buf`, returning it plus the payload slice.
     pub fn parse(buf: &[u8]) -> Result<(MediaHeader, &[u8])> {
         if buf.len() < HEADER_LEN {
-            return Err(Error::InvalidArg("datagram shorter than media header".into()));
+            return Err(Error::InvalidArg(
+                "datagram shorter than media header".into(),
+            ));
         }
         let version = buf[0] >> 6;
         if version != VERSION {
-            return Err(Error::InvalidArg(format!("unsupported framing version {version}")));
+            return Err(Error::InvalidArg(format!(
+                "unsupported framing version {version}"
+            )));
         }
         let marker = (buf[0] & 0b0010_0000) != 0;
         let payload_type = buf[1];
         let sequence = u16::from_be_bytes([buf[2], buf[3]]);
         let timestamp = u32::from_be_bytes([buf[4], buf[5], buf[6], buf[7]]);
         Ok((
-            MediaHeader { marker, payload_type, sequence, timestamp },
+            MediaHeader {
+                marker,
+                payload_type,
+                sequence,
+                timestamp,
+            },
             &buf[HEADER_LEN..],
         ))
     }
@@ -86,7 +95,12 @@ mod tests {
 
     #[test]
     fn roundtrip() {
-        let h = MediaHeader { marker: true, payload_type: PT_AUDIO, sequence: 0xBEEF, timestamp: 0xDEAD_C0DE };
+        let h = MediaHeader {
+            marker: true,
+            payload_type: PT_AUDIO,
+            sequence: 0xBEEF,
+            timestamp: 0xDEAD_C0DE,
+        };
         let mut buf = [0u8; HEADER_LEN + 3];
         h.write(&mut buf);
         buf[HEADER_LEN..].copy_from_slice(&[1, 2, 3]);

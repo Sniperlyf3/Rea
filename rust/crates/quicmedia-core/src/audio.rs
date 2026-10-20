@@ -49,7 +49,13 @@ impl AudioStreams {
 
     /// Split into (capture receiver, playout sender, device-keepalive).
     /// The device must be kept alive for capture/render to continue.
-    pub fn into_parts(self) -> (mpsc::Receiver<Frame>, mpsc::Sender<Frame>, Box<dyn AudioDevice>) {
+    pub fn into_parts(
+        self,
+    ) -> (
+        mpsc::Receiver<Frame>,
+        mpsc::Sender<Frame>,
+        Box<dyn AudioDevice>,
+    ) {
         (self.captured, self.to_play, self.device)
     }
 }
@@ -71,7 +77,8 @@ pub fn make_backend(kind: AudioBackendKind) -> Result<Box<dyn AudioBackend>> {
             #[cfg(not(feature = "cpal-backend"))]
             {
                 Err(Error::Unsupported(
-                    "Cpal backend requested but the `cpal-backend` feature was not compiled in".into(),
+                    "Cpal backend requested but the `cpal-backend` feature was not compiled in"
+                        .into(),
                 ))
             }
         }
@@ -139,7 +146,10 @@ impl AudioBackend for NullBackend {
         Ok(AudioStreams {
             captured: cap_rx,
             to_play: play_tx,
-            device: Box::new(NullDevice { stop, handle: Some(handle) }),
+            device: Box::new(NullDevice {
+                stop,
+                handle: Some(handle),
+            }),
         })
     }
 }
@@ -214,8 +224,10 @@ mod cpal_backend {
                                     for &s in data {
                                         acc.push((s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16);
                                         if acc.len() == frame_len {
-                                            let frame =
-                                                std::mem::replace(&mut acc, Vec::with_capacity(frame_len));
+                                            let frame = std::mem::replace(
+                                                &mut acc,
+                                                Vec::with_capacity(frame_len),
+                                            );
                                             let _ = cap_tx_cb.try_send(frame.into_boxed_slice());
                                         }
                                     }
@@ -291,7 +303,10 @@ mod cpal_backend {
             Ok(AudioStreams {
                 captured: cap_rx,
                 to_play: play_tx,
-                device: Box::new(CpalDevice { stop, handle: Some(handle) }),
+                device: Box::new(CpalDevice {
+                    stop,
+                    handle: Some(handle),
+                }),
             })
         }
     }

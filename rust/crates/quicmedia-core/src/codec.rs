@@ -49,7 +49,9 @@ pub struct PassthroughCodec {
 
 impl PassthroughCodec {
     pub fn new(params: &AudioParams) -> Self {
-        PassthroughCodec { frame_len: params.frame_len() }
+        PassthroughCodec {
+            frame_len: params.frame_len(),
+        }
     }
 }
 
@@ -69,7 +71,9 @@ impl Codec for PassthroughCodec {
             None => out.resize(self.frame_len, 0),
             Some(bytes) => {
                 if bytes.len() % 2 != 0 {
-                    return Err(Error::Codec("passthrough payload not 16-bit aligned".into()));
+                    return Err(Error::Codec(
+                        "passthrough payload not 16-bit aligned".into(),
+                    ));
                 }
                 out.reserve(bytes.len() / 2);
                 for chunk in bytes.chunks_exact(2) {
@@ -101,7 +105,11 @@ mod opus_impl {
         Ok(match n {
             1 => Channels::Mono,
             2 => Channels::Stereo,
-            other => return Err(Error::Config(format!("Opus supports 1 or 2 channels, got {other}"))),
+            other => {
+                return Err(Error::Config(format!(
+                    "Opus supports 1 or 2 channels, got {other}"
+                )))
+            }
         })
     }
 
@@ -170,7 +178,10 @@ mod tests {
 
     #[test]
     fn passthrough_roundtrip() {
-        let params = AudioParams { codec: CodecKind::Passthrough, ..Default::default() };
+        let params = AudioParams {
+            codec: CodecKind::Passthrough,
+            ..Default::default()
+        };
         let mut c = PassthroughCodec::new(&params);
         let pcm: Vec<i16> = (0..params.frame_len() as i16).collect();
         let mut enc = Vec::new();
@@ -182,7 +193,10 @@ mod tests {
 
     #[test]
     fn passthrough_conceals_with_silence() {
-        let params = AudioParams { codec: CodecKind::Passthrough, ..Default::default() };
+        let params = AudioParams {
+            codec: CodecKind::Passthrough,
+            ..Default::default()
+        };
         let mut c = PassthroughCodec::new(&params);
         let mut dec = Vec::new();
         c.decode(None, &mut dec).unwrap();

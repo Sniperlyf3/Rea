@@ -149,11 +149,17 @@ impl Config {
         if self.role == Role::Client && self.peer_addr.is_none() {
             return Err(crate::Error::Config("client requires peer_addr".into()));
         }
-        if self.role == Role::Server && (self.security.cert_der.is_empty() || self.security.key_der.is_empty()) {
-            return Err(crate::Error::Config("server requires cert_der and key_der".into()));
+        if self.role == Role::Server
+            && (self.security.cert_der.is_empty() || self.security.key_der.is_empty())
+        {
+            return Err(crate::Error::Config(
+                "server requires cert_der and key_der".into(),
+            ));
         }
         if self.security.alpn.is_empty() {
-            return Err(crate::Error::Config("at least one ALPN id is required".into()));
+            return Err(crate::Error::Config(
+                "at least one ALPN id is required".into(),
+            ));
         }
         Ok(())
     }

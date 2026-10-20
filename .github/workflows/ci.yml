@@ -1,0 +1,92 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, "ccr-*"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust:
+    name: rust / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    defaults:
+      run:
+        working-directory: rust
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Install ALSA headers (Linux, for cpal)
+        if: runner.os == 'Linux'
+        working-directory: .
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
+      - name: rustfmt
+        if: runner.os == 'Linux'
+        run: cargo fmt --all --check
+
+      - name: clippy (default + opus)
+        if: runner.os == 'Linux'
+        run: cargo clippy --workspace --all-targets --features opus-codec -- -D warnings
+
+      - name: test (headless default features)
+        run: cargo test --workspace
+
+      - name: build with all features (opus + cpal)
+        run: cargo build --workspace --release --features opus-codec,cpal-backend
+
+  dotnet:
+    name: dotnet / build + pack
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install ALSA headers (for cpal)
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
+
+      - name: Build + stage native library (linux-x64)
+        run: ./build/build-native.sh --features opus-codec,cpal-backend
+
+      - name: dotnet build
+        run: dotnet build dotnet/QuicMedia.sln -c Release
+
+      - name: dotnet pack
+        run: dotnet pack dotnet/QuicMedia/QuicMedia.csproj -c Release -o artifacts
+
+      - name: Upload NuGet package
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuicMedia-nupkg
+          path: artifacts/*.nupkg
+          if-no-files-found: error

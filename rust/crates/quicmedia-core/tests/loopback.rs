@@ -127,8 +127,14 @@ fn quic_loopback_media_and_data() {
     )
     .expect("client start");
 
-    assert!(wait_until(&cli_connected, Duration::from_secs(5)), "client did not connect");
-    assert!(wait_until(&srv_connected, Duration::from_secs(5)), "server did not connect");
+    assert!(
+        wait_until(&cli_connected, Duration::from_secs(5)),
+        "client did not connect"
+    );
+    assert!(
+        wait_until(&srv_connected, Duration::from_secs(5)),
+        "server did not connect"
+    );
 
     // ---- Data channel: client -> server, then server -> client ----
     client.send_data(b"hello from client".to_vec()).unwrap();

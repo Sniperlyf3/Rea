@@ -27,7 +27,7 @@ pub struct QmSession {
 
 #[repr(C)]
 pub struct QmConfig {
-    pub role: i32,          // 0 = server, 1 = client
+    pub role: i32, // 0 = server, 1 = client
     pub bind_addr: *const c_char,
     pub peer_addr: *const c_char, // nullable
     pub server_name: *const c_char,
@@ -35,16 +35,16 @@ pub struct QmConfig {
     pub channels: u16,
     pub frame_ms: u32,
     pub bitrate: u32,
-    pub codec: i32,          // 0 = opus, 1 = passthrough
-    pub audio_backend: i32,  // 0 = auto, 1 = cpal, 2 = null
-    pub enable_audio: i32,   // bool
+    pub codec: i32,               // 0 = opus, 1 = passthrough
+    pub audio_backend: i32,       // 0 = auto, 1 = cpal, 2 = null
+    pub enable_audio: i32,        // bool
     pub enable_data_channel: i32, // bool
-    pub verification: i32,   // 0 = insecure, 1 = pinned_cert, 2 = pinned_sha256
+    pub verification: i32,        // 0 = insecure, 1 = pinned_cert, 2 = pinned_sha256
     pub cert_der: *const u8,
     pub cert_der_len: usize,
     pub key_der: *const u8,
     pub key_der_len: usize,
-    pub pin: *const u8,      // pinned cert DER or 32-byte sha256, per `verification`
+    pub pin: *const u8, // pinned cert DER or 32-byte sha256, per `verification`
     pub pin_len: usize,
 }
 
@@ -221,7 +221,11 @@ pub unsafe extern "C" fn qm_generate_self_signed(
         return ERR_NULL_ARG;
     }
     let sans: Vec<String> = match opt_str(sans_csv) {
-        Some(s) => s.split(',').map(|x| x.trim().to_string()).filter(|x| !x.is_empty()).collect(),
+        Some(s) => s
+            .split(',')
+            .map(|x| x.trim().to_string())
+            .filter(|x| !x.is_empty())
+            .collect(),
         None => Vec::new(),
     };
     match security::generate_self_signed(&sans) {

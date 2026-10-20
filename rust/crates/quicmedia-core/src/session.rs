@@ -221,8 +221,14 @@ async fn run_session(
     // ---- Reliable data channel ----
     if config.enable_data_channel {
         let stream = match config.role {
-            Role::Client => conn.open_bi().await.map_err(|e| Error::Connection(e.to_string())),
-            Role::Server => conn.accept_bi().await.map_err(|e| Error::Connection(e.to_string())),
+            Role::Client => conn
+                .open_bi()
+                .await
+                .map_err(|e| Error::Connection(e.to_string())),
+            Role::Server => conn
+                .accept_bi()
+                .await
+                .map_err(|e| Error::Connection(e.to_string())),
         };
         match stream {
             Ok((send, recv)) => {
@@ -241,7 +247,9 @@ async fn run_session(
             let mut iv = tokio::time::interval(Duration::from_secs(1));
             loop {
                 iv.tick().await;
-                stats.rtt_us.store(conn.rtt().as_micros() as u64, Ordering::Relaxed);
+                stats
+                    .rtt_us
+                    .store(conn.rtt().as_micros() as u64, Ordering::Relaxed);
             }
         });
     }
@@ -332,20 +340,17 @@ fn start_audio(
         let stats = stats.clone();
         let jitter = jitter.clone();
         tasks.spawn(async move {
-            loop {
-                match conn.read_datagram().await {
-                    Ok(bytes) => {
-                        stats.datagrams_recv.fetch_add(1, Ordering::Relaxed);
-                        stats.bytes_recv.fetch_add(bytes.len() as u64, Ordering::Relaxed);
-                        if let Ok((hdr, body)) = MediaHeader::parse(&bytes) {
-                            if hdr.payload_type == PT_AUDIO {
-                                if let Ok(mut j) = jitter.lock() {
-                                    j.push(hdr.sequence, body.to_vec());
-                                }
-                            }
+            while let Ok(bytes) = conn.read_datagram().await {
+                stats.datagrams_recv.fetch_add(1, Ordering::Relaxed);
+                stats
+                    .bytes_recv
+                    .fetch_add(bytes.len() as u64, Ordering::Relaxed);
+                if let Ok((hdr, body)) = MediaHeader::parse(&bytes) {
+                    if hdr.payload_type == PT_AUDIO {
+                        if let Ok(mut j) = jitter.lock() {
+                            j.push(hdr.sequence, body.to_vec());
                         }
                     }
-                    Err(_) => break,
                 }
             }
         });

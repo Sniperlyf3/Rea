@@ -57,7 +57,9 @@ async fn connect_client(config: &Config) -> Result<(Endpoint, Connection)> {
     let connecting = endpoint
         .connect(peer, &config.server_name)
         .map_err(|e| Error::Connect(e.to_string()))?;
-    let conn = connecting.await.map_err(|e| Error::Connect(e.to_string()))?;
+    let conn = connecting
+        .await
+        .map_err(|e| Error::Connect(e.to_string()))?;
     Ok((endpoint, conn))
 }
 

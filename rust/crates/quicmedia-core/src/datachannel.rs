@@ -17,7 +17,10 @@ pub const MAX_MESSAGE: usize = 16 * 1024 * 1024;
 pub async fn writer_task(mut send: SendStream, mut outgoing: mpsc::Receiver<Vec<u8>>) {
     while let Some(msg) = outgoing.recv().await {
         if msg.len() > MAX_MESSAGE {
-            tracing::warn!("dropping oversized data-channel message ({} bytes)", msg.len());
+            tracing::warn!(
+                "dropping oversized data-channel message ({} bytes)",
+                msg.len()
+            );
             continue;
         }
         let len = (msg.len() as u32).to_be_bytes();
