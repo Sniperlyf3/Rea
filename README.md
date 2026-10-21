@@ -37,13 +37,13 @@ docs/ARCHITECTURE.md       design, threading, security, packaging, roadmap
 ```bash
 cd rust
 cargo test                              # headless: PCM passthrough + null audio + QUIC loopback
-cargo build -p quicmedia-ffi --release --features opus-codec,cpal-backend
+cargo build -p quicmedia-ffi --release --features opus-codec,miniaudio-backend
 ```
 
-> The `cpal-backend` feature needs platform audio dev headers at build time
-> (e.g. `libasound2-dev` on Linux). `opus-codec` needs a C toolchain + cmake.
-> The default build is headless-safe (neither feature), which is how CI runs the
-> full QUIC pipeline test.
+> `miniaudio-backend` builds the vendored miniaudio (header-only C) and needs
+> **no** audio `-dev` packages — miniaudio loads the platform audio API at
+> runtime. `opus-codec` needs a C toolchain + cmake. The default build is
+> headless-safe (neither feature), which is how CI runs the full QUIC pipeline test.
 
 ## Build the NuGet (host RID)
 
@@ -60,9 +60,9 @@ build/build-android.sh --abis "arm64-v8a x86_64"
 # stages dotnet/QuicMedia/runtimes/android-{arm64,x64}/native/libquicmedia.so
 ```
 
-The Android build defaults to empty features (transport + data channel +
-passthrough + null audio). Opus and the cpal/oboe audio backend are opt-in and
-need extra NDK/JNI setup — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#android).
+Add `--features miniaudio-backend` for real device audio on Android (miniaudio
+drives AAudio/OpenSL — no NDK/JNI glue needed). Opus stays opt-in (needs the
+Android cmake toolchain for libopus) — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md#android).
 
 ## Run the demo
 

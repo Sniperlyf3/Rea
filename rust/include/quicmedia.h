@@ -33,7 +33,7 @@ enum { QM_ROLE_SERVER = 0, QM_ROLE_CLIENT = 1 };
 /* codec */
 enum { QM_CODEC_OPUS = 0, QM_CODEC_PASSTHROUGH = 1 };
 /* audio_backend */
-enum { QM_BACKEND_AUTO = 0, QM_BACKEND_CPAL = 1, QM_BACKEND_NULL = 2 };
+enum { QM_BACKEND_AUTO = 0, QM_BACKEND_MINIAUDIO = 1, QM_BACKEND_NULL = 2 };
 /* verification */
 enum { QM_VERIFY_INSECURE = 0, QM_VERIFY_PINNED_CERT = 1, QM_VERIFY_PINNED_SHA256 = 2 };
 

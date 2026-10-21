@@ -5,12 +5,12 @@
 
 .EXAMPLE
   build/build-native.ps1 -Rid win-x64
-  build/build-native.ps1 -Rid win-x64 -Features "opus-codec,cpal-backend" -Profile release
+  build/build-native.ps1 -Rid win-x64 -Features "opus-codec,miniaudio-backend" -Profile release
 #>
 param(
   [string]$Target = "",
   [string]$Rid = "win-x64",
-  [string]$Features = "opus-codec,cpal-backend",
+  [string]$Features = "opus-codec,miniaudio-backend",
   [ValidateSet("release", "dev")] [string]$Profile = "release"
 )
 

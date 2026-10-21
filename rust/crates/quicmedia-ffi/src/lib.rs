@@ -36,7 +36,7 @@ pub struct QmConfig {
     pub frame_ms: u32,
     pub bitrate: u32,
     pub codec: i32,               // 0 = opus, 1 = passthrough
-    pub audio_backend: i32,       // 0 = auto, 1 = cpal, 2 = null
+    pub audio_backend: i32,       // 0 = auto, 1 = miniaudio, 2 = null
     pub enable_audio: i32,        // bool
     pub enable_data_channel: i32, // bool
     pub verification: i32,        // 0 = insecure, 1 = pinned_cert, 2 = pinned_sha256
@@ -139,7 +139,7 @@ unsafe fn build_config(cfg: &QmConfig) -> Result<Config, i32> {
         _ => CodecKind::Opus,
     };
     let audio_backend = match cfg.audio_backend {
-        1 => AudioBackendKind::Cpal,
+        1 => AudioBackendKind::Miniaudio,
         2 => AudioBackendKind::Null,
         _ => AudioBackendKind::Auto,
     };

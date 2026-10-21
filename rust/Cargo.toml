@@ -26,8 +26,6 @@ bytes = "1.7"
 thiserror = "2"
 tracing = "0.1"
 crossbeam-channel = "0.5"
-# Audio (optional, feature-gated)
-cpal = "0.15"
 # Codec (optional, feature-gated). 0.2 is the latest stable; 0.3 is prerelease-only.
 audiopus = "0.2"
 

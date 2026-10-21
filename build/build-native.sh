@@ -7,7 +7,7 @@
 #   build/build-native.sh [--target <rust-target>] [--rid <dotnet-rid>]
 #                         [--features <csv>] [--profile release|dev]
 #
-# Defaults: build for the host, RID auto-detected, features "opus-codec,cpal-backend".
+# Defaults: build for the host, RID auto-detected, features "opus-codec,miniaudio-backend".
 #
 # Cross targets (Android/iOS) require the relevant Rust target + toolchain
 # (e.g. cargo-ndk + Android NDK, or the ios targets on macOS). See docs/ARCHITECTURE.md.
@@ -19,7 +19,7 @@ STAGE_ROOT="$ROOT/dotnet/QuicMedia/runtimes"
 
 TARGET=""
 RID=""
-FEATURES="opus-codec,cpal-backend"
+FEATURES="opus-codec,miniaudio-backend"
 PROFILE="release"
 
 while [[ $# -gt 0 ]]; do

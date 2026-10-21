@@ -15,10 +15,10 @@
 #   - cargo-ndk           (cargo install cargo-ndk)
 #   - rust android targets (added automatically below via rustup)
 #
-# Default features are EMPTY on Android for a clean, dependency-light
-# cross-compile (pure-Rust transport + PCM passthrough + null audio backend).
-# Opus and the cpal/oboe backend are opt-in; see docs/ARCHITECTURE.md for the
-# extra NDK/JNI setup they require.
+# Default features are EMPTY here. Pass --features miniaudio-backend for real
+# device audio on Android (miniaudio drives AAudio/OpenSL, compiled by build.rs
+# with the NDK clang). Opus is opt-in and needs the Android cmake toolchain for
+# libopus; see docs/ARCHITECTURE.md.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

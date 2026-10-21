@@ -20,19 +20,21 @@ tracing = { workspace = true }
 crossbeam-channel = { workspace = true }
 sha2 = "0.10"
 
-# Optional native audio backend (real hardware devices).
-# Requires platform audio dev headers at build time (e.g. libasound2-dev on Linux).
-cpal = { workspace = true, optional = true }
-
 # Optional Opus codec (bundled libopus, built via cmake/cc).
 audiopus = { workspace = true, optional = true }
 
+[build-dependencies]
+# Compiles the vendored miniaudio single-header + C shim when `miniaudio-backend` is on.
+cc = "1"
+
 [features]
 # Headless-safe defaults: builds with no system audio deps.
-# Real deployments enable `opus-codec` and `cpal-backend`.
+# Real deployments enable `opus-codec` and `miniaudio-backend`.
 default = []
 opus-codec = ["dep:audiopus"]
-cpal-backend = ["dep:cpal"]
+# Native real-device audio via vendored miniaudio (header-only C, built by build.rs).
+# No Rust dependency: build.rs keys off the CARGO_FEATURE_MINIAUDIO_BACKEND env var.
+miniaudio-backend = []
 
 [dev-dependencies]
 tokio = { version = "1.40", features = ["rt-multi-thread", "sync", "time", "macros", "test-util"] }

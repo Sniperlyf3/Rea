@@ -23,10 +23,10 @@ pub enum CodecKind {
 /// Which audio backend to use for capture/render.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AudioBackendKind {
-    /// Pick the best available: real hardware (`cpal-backend`) if compiled, else null.
+    /// Pick the best available: real hardware (`miniaudio-backend`) if compiled, else null.
     Auto,
-    /// Real hardware devices (requires the `cpal-backend` feature).
-    Cpal,
+    /// Real hardware devices via miniaudio (requires the `miniaudio-backend` feature).
+    Miniaudio,
     /// Headless backend: captures silence, discards playout. For tests/servers.
     Null,
 }

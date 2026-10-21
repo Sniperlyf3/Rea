@@ -20,4 +20,4 @@ quicmedia-core = { path = "../quicmedia-core" }
 [features]
 default = []
 opus-codec = ["quicmedia-core/opus-codec"]
-cpal-backend = ["quicmedia-core/cpal-backend"]
+miniaudio-backend = ["quicmedia-core/miniaudio-backend"]

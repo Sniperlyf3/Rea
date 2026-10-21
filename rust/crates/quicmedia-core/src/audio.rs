@@ -7,9 +7,11 @@
 //! * [`NullBackend`] — always compiled. Captures silence at the frame cadence
 //!   and discards playout. Lets the whole pipeline run headless (servers, CI,
 //!   tests) with no audio hardware.
-//! * `CpalBackend` — behind the `cpal-backend` feature. Drives real input/output
-//!   devices. Requires platform audio dev headers at build time (e.g.
-//!   `libasound2-dev` on Linux).
+//! * `MiniaudioBackend` — behind the `miniaudio-backend` feature. Drives a real
+//!   full-duplex device via the vendored miniaudio single-header (compiled by
+//!   `build.rs`). miniaudio loads the platform audio API at runtime, so no audio
+//!   `-dev` packages are needed at build time, and it covers Windows, macOS,
+//!   Linux, Android and iOS from one source.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -69,25 +71,25 @@ pub trait AudioBackend: Send + Sync {
 pub fn make_backend(kind: AudioBackendKind) -> Result<Box<dyn AudioBackend>> {
     match kind {
         AudioBackendKind::Null => Ok(Box::new(NullBackend)),
-        AudioBackendKind::Cpal => {
-            #[cfg(feature = "cpal-backend")]
+        AudioBackendKind::Miniaudio => {
+            #[cfg(feature = "miniaudio-backend")]
             {
-                Ok(Box::new(cpal_backend::CpalBackend))
+                Ok(Box::new(miniaudio_backend::MiniaudioBackend))
             }
-            #[cfg(not(feature = "cpal-backend"))]
+            #[cfg(not(feature = "miniaudio-backend"))]
             {
                 Err(Error::Unsupported(
-                    "Cpal backend requested but the `cpal-backend` feature was not compiled in"
+                    "miniaudio backend requested but the `miniaudio-backend` feature was not compiled in"
                         .into(),
                 ))
             }
         }
         AudioBackendKind::Auto => {
-            #[cfg(feature = "cpal-backend")]
+            #[cfg(feature = "miniaudio-backend")]
             {
-                Ok(Box::new(cpal_backend::CpalBackend))
+                Ok(Box::new(miniaudio_backend::MiniaudioBackend))
             }
-            #[cfg(not(feature = "cpal-backend"))]
+            #[cfg(not(feature = "miniaudio-backend"))]
             {
                 Ok(Box::new(NullBackend))
             }
@@ -154,158 +156,163 @@ impl AudioBackend for NullBackend {
     }
 }
 
-#[cfg(feature = "cpal-backend")]
-mod cpal_backend {
+#[cfg(feature = "miniaudio-backend")]
+mod miniaudio_backend {
     use super::*;
-    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+    use std::os::raw::c_void;
 
-    pub struct CpalBackend;
-
-    struct CpalDevice {
-        stop: Arc<AtomicBool>,
-        handle: Option<JoinHandle<()>>,
+    #[repr(C)]
+    struct QmAudioDevice {
+        _private: [u8; 0],
     }
 
-    impl AudioDevice for CpalDevice {
-        fn stop(&mut self) {
-            self.stop.store(true, Ordering::Relaxed);
-            if let Some(h) = self.handle.take() {
-                let _ = h.join();
+    extern "C" {
+        fn qm_audio_open(
+            sample_rate: u32,
+            channels: u16,
+            cb: extern "C" fn(*mut c_void, *const i16, *mut i16, u32),
+            user: *mut c_void,
+            out: *mut *mut QmAudioDevice,
+        ) -> i32;
+        fn qm_audio_close(dev: *mut QmAudioDevice);
+    }
+
+    /// Per-device state owned by Rust and borrowed by the C audio thread.
+    /// Only the audio thread touches it, and only between open and close.
+    struct MaState {
+        cap_tx: mpsc::Sender<Frame>,
+        cap_acc: Vec<i16>,
+        frame_len: usize,
+        play_rx: mpsc::Receiver<Frame>,
+        play_leftover: Vec<i16>,
+        play_pos: usize,
+        channels: usize,
+    }
+
+    /// Invoked on miniaudio's audio thread with interleaved s16 in/out buffers.
+    extern "C" fn data_callback(
+        user: *mut c_void,
+        input: *const i16,
+        output: *mut i16,
+        frames: u32,
+    ) {
+        if user.is_null() {
+            return;
+        }
+        // SAFETY: `user` is the Box<MaState> pointer passed to qm_audio_open; it
+        // stays valid until qm_audio_close (which joins the audio thread) returns,
+        // and only this callback (on one thread) dereferences it.
+        let st = unsafe { &mut *(user as *mut MaState) };
+        let total = frames as usize * st.channels;
+
+        // Capture: accumulate into frame_len chunks and hand them to the session.
+        if !input.is_null() {
+            let inp = unsafe { std::slice::from_raw_parts(input, total) };
+            st.cap_acc.extend_from_slice(inp);
+            while st.cap_acc.len() >= st.frame_len {
+                let frame: Frame = st
+                    .cap_acc
+                    .drain(..st.frame_len)
+                    .collect::<Vec<i16>>()
+                    .into_boxed_slice();
+                let _ = st.cap_tx.try_send(frame);
+            }
+        }
+
+        // Playout: fill from the session, concealing underruns with silence.
+        if !output.is_null() {
+            let out = unsafe { std::slice::from_raw_parts_mut(output, total) };
+            for slot in out.iter_mut() {
+                if st.play_pos >= st.play_leftover.len() {
+                    match st.play_rx.try_recv() {
+                        Ok(frame) => {
+                            st.play_leftover = frame.into_vec();
+                            st.play_pos = 0;
+                        }
+                        Err(_) => {
+                            *slot = 0;
+                            continue;
+                        }
+                    }
+                }
+                *slot = st.play_leftover[st.play_pos];
+                st.play_pos += 1;
             }
         }
     }
 
-    impl Drop for CpalDevice {
+    pub struct MiniaudioBackend;
+
+    struct MiniaudioDevice {
+        handle: *mut QmAudioDevice,
+        state: *mut MaState,
+    }
+
+    // The raw pointers are owned solely by this struct; the audio thread only
+    // borrows `state` between open and close.
+    unsafe impl Send for MiniaudioDevice {}
+
+    impl AudioDevice for MiniaudioDevice {
+        fn stop(&mut self) {
+            if !self.handle.is_null() {
+                // Joins the audio thread; no callback runs after this returns.
+                unsafe { qm_audio_close(self.handle) };
+                self.handle = std::ptr::null_mut();
+            }
+            if !self.state.is_null() {
+                // SAFETY: reclaim the Box now that no callback can reference it.
+                unsafe { drop(Box::from_raw(self.state)) };
+                self.state = std::ptr::null_mut();
+            }
+        }
+    }
+
+    impl Drop for MiniaudioDevice {
         fn drop(&mut self) {
             self.stop();
         }
     }
 
-    impl AudioBackend for CpalBackend {
+    impl AudioBackend for MiniaudioBackend {
         fn start(&self, params: &AudioParams) -> Result<AudioStreams> {
             let (cap_tx, cap_rx) = mpsc::channel::<Frame>(CHANNEL_DEPTH);
             let (play_tx, play_rx) = mpsc::channel::<Frame>(CHANNEL_DEPTH);
 
-            let frame_len = params.frame_len();
-            let channels = params.channels as usize;
-            let config = cpal::StreamConfig {
-                channels: params.channels,
-                sample_rate: cpal::SampleRate(params.sample_rate),
-                buffer_size: cpal::BufferSize::Default,
+            let state = Box::new(MaState {
+                cap_tx,
+                cap_acc: Vec::with_capacity(params.frame_len() * 2),
+                frame_len: params.frame_len(),
+                play_rx,
+                play_leftover: Vec::new(),
+                play_pos: 0,
+                channels: params.channels as usize,
+            });
+            let state_ptr = Box::into_raw(state);
+
+            let mut handle: *mut QmAudioDevice = std::ptr::null_mut();
+            let rc = unsafe {
+                qm_audio_open(
+                    params.sample_rate,
+                    params.channels,
+                    data_callback,
+                    state_ptr as *mut c_void,
+                    &mut handle,
+                )
             };
-
-            let stop = Arc::new(AtomicBool::new(false));
-            let stop_thread = stop.clone();
-
-            // cpal streams are not `Send` on some platforms, so build, run and
-            // hold them on one dedicated thread for the device's whole lifetime.
-            let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
-
-            let handle = std::thread::Builder::new()
-                .name("qm-cpal-audio".into())
-                .spawn(move || {
-                    let host = cpal::default_host();
-
-                    let build = || -> Result<(cpal::Stream, cpal::Stream)> {
-                        let input = host
-                            .default_input_device()
-                            .ok_or_else(|| Error::Audio("no default input device".into()))?;
-                        let output = host
-                            .default_output_device()
-                            .ok_or_else(|| Error::Audio("no default output device".into()))?;
-
-                        // Capture: accumulate f32 samples into i16 frames.
-                        let mut acc: Vec<i16> = Vec::with_capacity(frame_len);
-                        let cap_tx_cb = cap_tx.clone();
-                        let input_stream = input
-                            .build_input_stream(
-                                &config,
-                                move |data: &[f32], _| {
-                                    for &s in data {
-                                        acc.push((s.clamp(-1.0, 1.0) * i16::MAX as f32) as i16);
-                                        if acc.len() == frame_len {
-                                            let frame = std::mem::replace(
-                                                &mut acc,
-                                                Vec::with_capacity(frame_len),
-                                            );
-                                            let _ = cap_tx_cb.try_send(frame.into_boxed_slice());
-                                        }
-                                    }
-                                },
-                                |err| tracing::warn!("cpal input error: {err}"),
-                                None,
-                            )
-                            .map_err(|e| Error::Audio(format!("build input stream: {e}")))?;
-
-                        // Playout: feed from the session, concealing underruns with silence.
-                        let mut play_rx = play_rx;
-                        let mut leftover: Vec<i16> = Vec::new();
-                        let mut pos = 0usize;
-                        let output_stream = output
-                            .build_output_stream(
-                                &config,
-                                move |out: &mut [f32], _| {
-                                    for slot in out.iter_mut() {
-                                        if pos >= leftover.len() {
-                                            match play_rx.try_recv() {
-                                                Ok(frame) => {
-                                                    leftover = frame.into_vec();
-                                                    pos = 0;
-                                                }
-                                                Err(_) => {
-                                                    *slot = 0.0;
-                                                    continue;
-                                                }
-                                            }
-                                        }
-                                        *slot = leftover[pos] as f32 / i16::MAX as f32;
-                                        pos += 1;
-                                    }
-                                },
-                                |err| tracing::warn!("cpal output error: {err}"),
-                                None,
-                            )
-                            .map_err(|e| Error::Audio(format!("build output stream: {e}")))?;
-
-                        input_stream
-                            .play()
-                            .map_err(|e| Error::Audio(format!("play input: {e}")))?;
-                        output_stream
-                            .play()
-                            .map_err(|e| Error::Audio(format!("play output: {e}")))?;
-                        let _ = channels; // reserved for future per-channel handling
-                        Ok((input_stream, output_stream))
-                    };
-
-                    match build() {
-                        Ok(streams) => {
-                            let _ = ready_tx.send(Ok(()));
-                            // Keep streams alive until stop is requested.
-                            while !stop_thread.load(Ordering::Relaxed) {
-                                std::thread::sleep(std::time::Duration::from_millis(50));
-                            }
-                            drop(streams);
-                        }
-                        Err(e) => {
-                            let _ = ready_tx.send(Err(e));
-                        }
-                    }
-                })
-                .map_err(|e| Error::Audio(format!("spawn cpal thread: {e}")))?;
-
-            // Surface device-build errors synchronously.
-            match ready_rx.recv() {
-                Ok(Ok(())) => {}
-                Ok(Err(e)) => return Err(e),
-                Err(_) => return Err(Error::Audio("cpal thread exited before readiness".into())),
+            if rc != 0 {
+                // SAFETY: open failed, so no callback will ever run; reclaim the Box.
+                unsafe { drop(Box::from_raw(state_ptr)) };
+                return Err(Error::Audio(format!(
+                    "miniaudio device open failed (code {rc})"
+                )));
             }
 
             Ok(AudioStreams {
                 captured: cap_rx,
                 to_play: play_tx,
-                device: Box::new(CpalDevice {
-                    stop,
-                    handle: Some(handle),
+                device: Box::new(MiniaudioDevice {
+                    handle,
+                    state: state_ptr,
                 }),
             })
         }

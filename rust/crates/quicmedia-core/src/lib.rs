@@ -13,7 +13,7 @@
 //! * [`framing`] — the compact RTP-like datagram header.
 //! * [`jitter`] — the playout / jitter buffer.
 //! * [`codec`] — Opus (feature `opus-codec`) and PCM passthrough.
-//! * [`audio`] — native capture/render backends (null + cpal).
+//! * [`audio`] — native capture/render backends (null + miniaudio).
 //! * [`datachannel`] — the reliable data channel tasks.
 //! * [`session`] — the orchestrator and public [`Session`] handle.
 

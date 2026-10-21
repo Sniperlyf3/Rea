@@ -34,11 +34,6 @@ jobs:
         with:
           workspaces: rust
 
-      - name: Install ALSA headers (Linux, for cpal)
-        if: runner.os == 'Linux'
-        working-directory: .
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-
       - name: Install autotools (macOS, for Opus/libopus build)
         if: runner.os == 'macOS'
         working-directory: .
@@ -48,15 +43,15 @@ jobs:
         if: runner.os == 'Linux'
         run: cargo fmt --all --check
 
-      - name: clippy (default + opus)
+      - name: clippy (opus + miniaudio)
         if: runner.os == 'Linux'
-        run: cargo clippy --workspace --all-targets --features opus-codec -- -D warnings
+        run: cargo clippy --workspace --all-targets --features opus-codec,miniaudio-backend -- -D warnings
 
       - name: test (headless default features)
         run: cargo test --workspace
 
-      - name: build with all features (opus + cpal)
-        run: cargo build --workspace --release --features opus-codec,cpal-backend
+      - name: build with all features (opus + miniaudio)
+        run: cargo build --workspace --release --features opus-codec,miniaudio-backend
 
   dotnet:
     name: dotnet / build + pack
@@ -77,11 +72,8 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
-      - name: Install ALSA headers (for cpal)
-        run: sudo apt-get update && sudo apt-get install -y libasound2-dev
-
       - name: Build + stage native library (linux-x64)
-        run: ./build/build-native.sh --features opus-codec,cpal-backend
+        run: ./build/build-native.sh --features opus-codec,miniaudio-backend
 
       - name: dotnet build
         run: dotnet build dotnet/QuicMedia.sln -c Release
@@ -124,7 +116,7 @@ jobs:
       - name: Build Android native libraries (arm64-v8a, x86_64)
         env:
           ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-        run: ./build/build-android.sh --abis "arm64-v8a x86_64"
+        run: ./build/build-android.sh --abis "arm64-v8a x86_64" --features miniaudio-backend
 
       - name: Upload Android native libraries
         uses: actions/upload-artifact@v4

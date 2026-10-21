@@ -66,7 +66,11 @@ never touches a media byte.
   for tests/LAN and as a graceful fallback.
 - **`audio`** — an `AudioBackend` trait. `NullBackend` (always compiled)
   captures silence and discards playout for headless/server/CI use;
-  `CpalBackend` (`cpal-backend` feature) drives real input/output devices.
+  `MiniaudioBackend` (`miniaudio-backend` feature) drives a real full-duplex
+  device through the vendored miniaudio single-header (a small C shim compiled
+  by `build.rs`). miniaudio loads the platform audio API at runtime, so no audio
+  `-dev` packages are required to build, and one source covers Windows (WASAPI),
+  macOS/iOS (Core Audio), Linux (ALSA/PulseAudio) and Android (AAudio/OpenSL).
 - **`datachannel`** — length-delimited reliable messaging over a QUIC
   bidirectional stream.
 - **`session`** — the orchestrator and the public `Session` handle.
@@ -141,7 +145,7 @@ of the pin (or trust anchor) is the application's responsibility.
 | RID | Rust target | Notes |
 |-----|-------------|-------|
 | `win-x64` | `x86_64-pc-windows-msvc` | `quicmedia.dll` |
-| `linux-x64` | `x86_64-unknown-linux-gnu` | `libquicmedia.so`; cpal needs `libasound2-dev` |
+| `linux-x64` | `x86_64-unknown-linux-gnu` | `libquicmedia.so`; miniaudio needs no `-dev` packages |
 | `osx-arm64` / `osx-x64` | `aarch64-apple-darwin` / `x86_64-apple-darwin` | `libquicmedia.dylib` |
 | `android-arm64` etc. | `aarch64-linux-android` … | build with cargo-ndk + NDK; `.so` |
 | `ios-arm64` | `aarch64-apple-ios` | **static** `libquicmedia.a`, linked at MAUI app build |
@@ -157,23 +161,21 @@ for Android (MAUI) bundles into the APK from the NuGet package. ABI → RID:
 `arm64-v8a → android-arm64`, `x86_64 → android-x64`, `armeabi-v7a → android-arm`,
 `x86 → android-x86`. CI builds `arm64-v8a` and `x86_64` against NDK r26d.
 
-The Android build uses **empty default features** for a clean, dependency-light
-cross-compile (pure-Rust QUIC transport + reliable data channel + PCM passthrough
-+ null audio backend — everything except real device audio and Opus). Enabling
-the extra features on Android is opt-in and needs more setup:
+CI builds Android with **`--features miniaudio-backend`**, so real device audio
+works out of the box: miniaudio compiles with the NDK clang and drives AAudio
+(or OpenSL on older devices) directly — no `oboe`, no `JavaVM`/JNI glue, and no
+app-side `ndk_context` setup. That's the main reason for moving to miniaudio.
 
-- **`opus-codec`** — audiopus builds libopus through cmake; pass the Android
-  cmake toolchain so the C build targets the NDK.
-- **`cpal-backend`** — cpal's Android backend uses the `oboe` C++ library and
-  needs a `JavaVM` + `Context`. In a MAUI app, initialise `ndk_context` with the
-  app's `JavaVM`/`Context` before starting a session; until then, use the null
-  backend. (This is why audio capture/render on Android is an app-integration
-  step rather than something the headless library can do on its own.)
+Only **`opus-codec`** stays opt-in on Android: audiopus builds libopus through
+cmake, which needs the Android cmake toolchain pointed at the NDK. Without it,
+Android uses the PCM passthrough codec.
 
 ## Feature flags
 
 - `opus-codec` — real Opus (bundled libopus; needs a C toolchain + cmake).
-- `cpal-backend` — real audio devices (needs platform audio dev headers).
+- `miniaudio-backend` — real full-duplex device audio via the vendored miniaudio
+  single-header (compiled by `build.rs`; needs no audio `-dev` packages because
+  miniaudio loads the platform audio API at runtime).
 
 Without them the core still builds and runs headless with PCM passthrough and
 the null backend — which is exactly how the test suite exercises the full QUIC
@@ -190,8 +192,9 @@ pipeline in CI.
 
 ## Roadmap
 
-1. **Audio hardening:** device resampling / format negotiation in `CpalBackend`,
-   adaptive jitter target, Opus in-band FEC + DTX, RED/redundancy.
+1. **Audio hardening:** adaptive jitter target, Opus in-band FEC + DTX,
+   RED/redundancy, echo cancellation. (miniaudio already handles device
+   resampling and format conversion internally.)
 2. **Congestion & pacing:** media-aware pacing, optional BBR via quinn transport
    config, bandwidth estimation surfaced in stats.
 3. **Video:** add a payload type, hardware encode/decode (Media Foundation /

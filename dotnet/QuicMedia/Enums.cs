@@ -21,8 +21,8 @@ public enum QuicAudioBackend
 {
     /// <summary>Hardware devices if compiled in, otherwise the null backend.</summary>
     Auto = 0,
-    /// <summary>Real hardware devices (requires the <c>cpal-backend</c> feature).</summary>
-    Cpal = 1,
+    /// <summary>Real full-duplex hardware via miniaudio (requires the <c>miniaudio-backend</c> feature).</summary>
+    Miniaudio = 1,
     /// <summary>Headless: silence in, discard out.</summary>
     Null = 2,
 }
