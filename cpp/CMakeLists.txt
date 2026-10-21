@@ -31,6 +31,7 @@ endif()
 include(GNUInstallDirs)
 install(FILES
     "${QUICMEDIA_CXX_HEADER_DIR}/quicmedia/quicmedia.hpp"
+    "${QUICMEDIA_CXX_HEADER_DIR}/quicmedia/easy.hpp"
     "${QUICMEDIA_C_HEADER_DIR}/quicmedia.h"
     DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/quicmedia")
 install(FILES "${QUICMEDIA_LIBRARY}" DESTINATION "${CMAKE_INSTALL_LIBDIR}")

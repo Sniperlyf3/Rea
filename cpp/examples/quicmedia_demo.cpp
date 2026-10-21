@@ -8,6 +8,7 @@
 // program only drives the control plane.
 
 #include <quicmedia/quicmedia.hpp>
+#include <quicmedia/easy.hpp>
 
 #include <atomic>
 #include <chrono>
@@ -67,14 +68,41 @@ static std::vector<uint8_t> b64_decode(const std::string &in) {
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        std::fprintf(stderr, "usage:\n  %s server <bind-addr>\n  %s client <peer-addr> <pin-b64>\n",
-                     argv[0], argv[0]);
+        std::fprintf(stderr,
+                     "usage:\n"
+                     "  %s host <bind-addr>              (easy VoiceAgent: host a call)\n"
+                     "  %s join <peer-addr> <pin-b64>    (easy VoiceAgent: join + talk)\n"
+                     "  %s server <bind-addr>            (low-level API)\n"
+                     "  %s client <peer-addr> <pin-b64>  (low-level API)\n",
+                     argv[0], argv[0], argv[0], argv[0]);
         return 1;
     }
     qm::Engine::init();
 
     const std::string mode = argv[1];
     const std::string addr = argv[2];
+
+    // ---- easy layer: two-line host/join using VoiceAgent ----
+    if (mode == "host") {
+        quicmedia::easy::VoiceAgent agent;
+        auto pin = agent.host(addr);
+        std::printf("hosting on %s; pin:\n  %s\nPress Enter to quit\n", addr.c_str(),
+                    b64_encode(pin).c_str());
+        std::getchar();
+        return 0;
+    }
+    if (mode == "join") {
+        if (argc < 4) {
+            std::fprintf(stderr, "join requires a pin argument\n");
+            return 1;
+        }
+        quicmedia::easy::VoiceAgent agent;
+        auto [conn, stream] = agent.join(addr, b64_decode(argv[3]));
+        std::printf("joined (conn %llu, stream %u); talking. Press Enter to quit\n",
+                    (unsigned long long)conn, (unsigned)stream);
+        std::getchar();
+        return 0;
+    }
 
     qm::AudioParams params; // Opus, 48k mono, 120ms, 8kbps by default
     qm::Engine::Callbacks cb;

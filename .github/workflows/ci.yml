@@ -39,6 +39,11 @@ jobs:
         working-directory: .
         run: brew install autoconf automake libtool
 
+      - name: Install autotools (Linux, for static libopus build)
+        if: runner.os == 'Linux'
+        working-directory: .
+        run: sudo apt-get update && sudo apt-get install -y autoconf automake libtool
+
       - name: rustfmt
         if: runner.os == 'Linux'
         run: cargo fmt --all --check
@@ -71,6 +76,9 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+
+      - name: Install autotools (for static libopus build)
+        run: sudo apt-get update && sudo apt-get install -y autoconf automake libtool
 
       - name: Build + stage native library (linux-x64)
         run: ./build/build-native.sh --features opus-codec,miniaudio-backend
@@ -138,6 +146,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: rust
+
+      - name: Install autotools (for static libopus build)
+        run: sudo apt-get update && sudo apt-get install -y autoconf automake libtool
 
       - name: Build native lib + C++ example (CMake)
         run: ./build/build-cpp.sh

@@ -78,9 +78,9 @@ build/build-android.sh --abis "arm64-v8a x86_64" --features miniaudio-backend
 dotnet run --project dotnet/QuicMedia.Example -- server 0.0.0.0:5000
 dotnet run --project dotnet/QuicMedia.Example -- client 127.0.0.1:5000 <pin-base64>
 
-# C++
-cpp/build/quicmedia_demo server 0.0.0.0:5000
-cpp/build/quicmedia_demo client 127.0.0.1:5000 <pin-base64>
+# C++ (easy VoiceAgent — two lines; or `server`/`client` for the low-level API)
+cpp/build/quicmedia_demo host 0.0.0.0:5000
+cpp/build/quicmedia_demo join 127.0.0.1:5000 <pin-base64>
 ```
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design.

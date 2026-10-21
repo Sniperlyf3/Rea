@@ -1,0 +1,11 @@
+# Force audiopus_sys to build and statically link the bundled libopus instead of
+# dynamically linking a system libopus. On linux-gnu it otherwise defaults to a
+# dynamic `-lopus`, which makes libquicmedia depend on libopus.so.0 — breaking
+# portability of the NuGet / C++ package and the C++ example link.
+#
+# OPUS_STATIC  -> link the bundled libopus statically.
+# OPUS_NO_PKG  -> bypass pkg-config so it always builds the vendored source.
+# (Building the vendored libopus needs autotools: autoconf/automake/libtool.)
+[env]
+OPUS_STATIC = "1"
+OPUS_NO_PKG = "1"
