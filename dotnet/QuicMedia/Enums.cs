@@ -1,25 +1,18 @@
 namespace QuicMedia;
 
-/// <summary>Which side of the QUIC connection a session plays.</summary>
-public enum QuicRole
-{
-    Server = 0,
-    Client = 1,
-}
-
 /// <summary>Audio codec selection.</summary>
 public enum QuicCodec
 {
     /// <summary>Opus (requires the native library built with the <c>opus-codec</c> feature).</summary>
     Opus = 0,
-    /// <summary>Uncompressed 16-bit PCM passthrough (always available).</summary>
+    /// <summary>Uncompressed 16-bit PCM passthrough (tests/LAN).</summary>
     Passthrough = 1,
 }
 
 /// <summary>Native audio capture/render backend.</summary>
-public enum QuicAudioBackend
+public enum QuicBackend
 {
-    /// <summary>Hardware devices if compiled in, otherwise the null backend.</summary>
+    /// <summary>Real device via miniaudio if compiled in, otherwise the null backend.</summary>
     Auto = 0,
     /// <summary>Real full-duplex hardware via miniaudio (requires the <c>miniaudio-backend</c> feature).</summary>
     Miniaudio = 1,
@@ -36,13 +29,4 @@ public enum QuicVerification
     PinnedCert = 1,
     /// <summary>Pin the SHA-256 digest of the end-entity certificate DER.</summary>
     PinnedSha256 = 2,
-}
-
-/// <summary>Lifecycle state of the connection.</summary>
-public enum QuicConnectionState
-{
-    Connecting = 0,
-    Connected = 1,
-    Disconnected = 2,
-    Failed = 3,
 }

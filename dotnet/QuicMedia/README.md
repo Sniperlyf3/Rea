@@ -1,8 +1,12 @@
 # QuicMedia
 
-QUIC-based real-time **audio + reliable data** transport. The full media path
-(capture → Opus → QUIC datagrams → jitter buffer → render) runs in a native
-Rust core; **C# is control-plane only and never touches a media byte**.
+A QUIC-based real-time **voice engine**. One engine owns many QUIC connections,
+each carrying several logical audio streams; it can **capture** (mic → Opus),
+**play back** (decode → speaker), and **forward** encoded packets between
+connections natively (**SFU**). The full media path runs in a native Rust core —
+**C# is control-plane only and never touches a media byte**.
+
+Tuned for low-data voice: Opus, 120 ms ptime, ~8 kbps by default.
 
 ## Install
 
@@ -18,37 +22,37 @@ automatically via `[LibraryImport]`.
 ```csharp
 using QuicMedia;
 
-QuicMediaSession.Initialize();
+QuicMediaEngine.Initialize();
+using var engine = new QuicMediaEngine(new QuicAudioParams(), QuicBackend.Auto);
 
-// Server: generate a cert and publish its pin out of band.
+// Server: play back whatever streams clients open.
 var (cert, key) = QuicMediaCertificate.GenerateSelfSigned("localhost");
-byte[] pin = QuicMediaCertificate.Sha256(cert);
-
-using var server = QuicMediaSession.Start(new QuicMediaOptions
+engine.StreamOpened += (conn, stream, p) => engine.BindPlayback(conn, stream);
+engine.Listen("0.0.0.0:5000", new QuicSecurity
 {
-    Role = QuicRole.Server,
-    BindAddress = "0.0.0.0:5000",
-    CertificateDer = cert,
-    PrivateKeyDer = key,
-    Codec = QuicCodec.Opus,
+    Certificate = cert,
+    PrivateKey = key,
 });
 
-// Client: verify the server by pinned SHA-256.
-using var client = QuicMediaSession.Start(new QuicMediaOptions
+// Client: pin the server and send the mic.
+ulong c = engine.Connect("0.0.0.0:0", "127.0.0.1:5000", "localhost", new QuicSecurity
 {
-    Role = QuicRole.Client,
-    PeerAddress = "127.0.0.1:5000",
     Verification = QuicVerification.PinnedSha256,
-    Pin = pin,
-    Codec = QuicCodec.Opus,
+    Pin = QuicMediaCertificate.Sha256(cert),
 });
+ushort s = engine.AddCaptureStream(c, QuicCodec.Opus, 8_000, active: true);
 
-client.StateChanged += s => Console.WriteLine($"state: {s}");
-client.DataReceived += d => Console.WriteLine($"data: {d.Length} bytes");
-client.SendData("hello"u8);
+// Either side can pause the stream; the sender then stops transmitting entirely.
+engine.SetStreamActive(c, s, false);
 ```
 
-Audio capture/playout happen entirely in native code. You configure, start/stop,
-read `GetStats()`, and exchange small messages on the reliable data channel.
+### SFU (native fan-out)
 
-See the repository for the full architecture and the Rust source.
+```csharp
+// Forward an inbound stream's encoded packets to a downstream connection —
+// no decode, entirely in native code. Control (who is active) stays in C#.
+ushort fwd = engine.OpenStream(downstreamConn, QuicCodec.Opus, 8_000, active: true);
+engine.AddRoute(upstreamConn, upstreamStream, downstreamConn, fwd);
+```
+
+See the repository for the full architecture, the Rust source, and the C++ binding.

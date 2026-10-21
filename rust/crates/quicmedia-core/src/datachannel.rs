@@ -1,14 +1,13 @@
-//! Reliable, ordered generic data channel over a single QUIC bidirectional stream.
+//! Reliable, ordered generic data channel over a QUIC bidirectional stream.
 //!
 //! Messages are length-delimited: a 4-byte big-endian length prefix followed by
 //! that many payload bytes. This runs alongside the unreliable media datagrams
-//! on the same QUIC connection, so control messages never block or reorder audio.
+//! and the control stream on the same QUIC connection.
 
 use quinn::{RecvStream, SendStream};
 use tokio::sync::mpsc;
 
-use crate::Events;
-use std::sync::Arc;
+use crate::conn::{ConnEvent, ConnId};
 
 /// Maximum accepted message size (16 MiB) — guards against a hostile length prefix.
 pub const MAX_MESSAGE: usize = 16 * 1024 * 1024;
@@ -31,8 +30,12 @@ pub async fn writer_task(mut send: SendStream, mut outgoing: mpsc::Receiver<Vec<
     let _ = send.finish();
 }
 
-/// Reads framed messages from the stream and delivers them via `events.on_data`.
-pub async fn reader_task(mut recv: RecvStream, events: Arc<dyn Events>) {
+/// Reads framed messages and forwards each as a [`ConnEvent::Data`].
+pub async fn reader_task_events(
+    mut recv: RecvStream,
+    conn_id: ConnId,
+    event_tx: mpsc::Sender<ConnEvent>,
+) {
     let mut len_buf = [0u8; 4];
     loop {
         if recv.read_exact(&mut len_buf).await.is_err() {
@@ -47,6 +50,8 @@ pub async fn reader_task(mut recv: RecvStream, events: Arc<dyn Events>) {
         if recv.read_exact(&mut buf).await.is_err() {
             break;
         }
-        events.on_data(&buf);
+        if event_tx.send(ConnEvent::Data(conn_id, buf)).await.is_err() {
+            break;
+        }
     }
 }

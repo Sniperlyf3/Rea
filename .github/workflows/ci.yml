@@ -124,3 +124,20 @@ jobs:
           name: quicmedia-android
           path: dotnet/QuicMedia/runtimes/android-*/native/*.so
           if-no-files-found: error
+
+  cpp:
+    name: cpp / cmake build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build native lib + C++ example (CMake)
+        run: ./build/build-cpp.sh

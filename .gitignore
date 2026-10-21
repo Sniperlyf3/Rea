@@ -19,6 +19,10 @@ artifacts/
 # ---- Native build outputs collected for packaging ----
 /dotnet/QuicMedia/runtimes/
 
+# ---- C++ / CMake ----
+/cpp/build/
+cpp/include/quicmedia/quicmedia.h
+
 # ---- Editor / OS ----
 .DS_Store
 .idea/

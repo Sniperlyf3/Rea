@@ -1,8 +1,6 @@
-//! Session configuration types.
+//! Configuration types.
 
-use std::net::SocketAddr;
-
-/// Which side of the connection this session plays.
+/// Which side of the connection a peer plays (used for stream-id namespacing).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Role {
     /// Listens for an incoming QUIC connection.
@@ -48,11 +46,15 @@ pub struct AudioParams {
 
 impl Default for AudioParams {
     fn default() -> Self {
+        // Tuned for low-data voice: Opus (VoIP mode is selected in the codec),
+        // mono, and a 120 ms ptime so each packet carries more audio and the
+        // per-packet (UDP+QUIC+media header) overhead is amortized. Opus >= 1.1
+        // encodes 120 ms frames directly.
         AudioParams {
             sample_rate: 48_000,
             channels: 1,
-            frame_ms: 20,
-            bitrate: 24_000,
+            frame_ms: 120,
+            bitrate: 8_000,
             codec: CodecKind::Opus,
         }
     }
@@ -111,7 +113,7 @@ pub struct SecurityConfig {
 impl SecurityConfig {
     /// Development default: a fresh self-signed cert and an insecure verifier.
     ///
-    /// Use [`crate::security::generate_self_signed`] + [`PeerVerification::PinnedSpkiSha256`]
+    /// Use [`crate::security::generate_self_signed`] + [`PeerVerification::PinnedSha256`]
     /// for anything beyond a local prototype.
     pub fn self_signed_insecure(subject_alt_names: &[String]) -> crate::Result<Self> {
         let (cert_der, key_der) = crate::security::generate_self_signed(subject_alt_names)?;
@@ -121,46 +123,5 @@ impl SecurityConfig {
             verification: PeerVerification::Insecure,
             alpn: vec![crate::DEFAULT_ALPN.to_vec()],
         })
-    }
-}
-
-/// Full session configuration.
-#[derive(Clone, Debug)]
-pub struct Config {
-    pub role: Role,
-    /// Local UDP socket to bind. Server listens here; client uses it as source.
-    pub bind_addr: SocketAddr,
-    /// Remote peer address. Required for `Role::Client`.
-    pub peer_addr: Option<SocketAddr>,
-    /// Expected server name (SNI / certificate name).
-    pub server_name: String,
-    pub audio: AudioParams,
-    pub security: SecurityConfig,
-    pub audio_backend: AudioBackendKind,
-    /// Enable the audio data path (capture/encode/send + recv/decode/render).
-    pub enable_audio: bool,
-    /// Enable the reliable generic data channel (QUIC bidi stream).
-    pub enable_data_channel: bool,
-}
-
-impl Config {
-    pub(crate) fn validate(&self) -> crate::Result<()> {
-        self.audio.validate()?;
-        if self.role == Role::Client && self.peer_addr.is_none() {
-            return Err(crate::Error::Config("client requires peer_addr".into()));
-        }
-        if self.role == Role::Server
-            && (self.security.cert_der.is_empty() || self.security.key_der.is_empty())
-        {
-            return Err(crate::Error::Config(
-                "server requires cert_der and key_der".into(),
-            ));
-        }
-        if self.security.alpn.is_empty() {
-            return Err(crate::Error::Config(
-                "at least one ALPN id is required".into(),
-            ));
-        }
-        Ok(())
     }
 }

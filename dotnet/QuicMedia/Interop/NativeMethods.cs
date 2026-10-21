@@ -19,9 +19,7 @@ internal static unsafe partial class NativeMethods
     [LibraryImport(Lib)]
     [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
     internal static partial int qm_generate_self_signed(
-        byte* sansCsv,
-        byte** certOut, nuint* certLen,
-        byte** keyOut, nuint* keyLen);
+        byte* sansCsv, byte** certOut, nuint* certLen, byte** keyOut, nuint* keyLen);
 
     [LibraryImport(Lib)]
     [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
@@ -29,23 +27,64 @@ internal static unsafe partial class NativeMethods
 
     [LibraryImport(Lib)]
     [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-    internal static partial int qm_session_start(QmConfigNative* cfg, QmCallbacksNative* cbs, out IntPtr handle);
+    internal static partial int qm_engine_create(QmAudioParams* parms, int backend, QmCallbacks* cbs, out IntPtr engine);
 
     [LibraryImport(Lib)]
     [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-    internal static partial int qm_session_send_data(IntPtr session, byte* data, nuint len);
+    internal static partial void qm_engine_destroy(IntPtr engine);
 
     [LibraryImport(Lib)]
     [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-    internal static partial int qm_session_get_stats(IntPtr session, out QmStatsNative stats);
+    internal static partial int qm_engine_connect(
+        IntPtr engine, byte* bind, byte* peer, byte* serverName, QmSecurity* sec, int enableData, out ulong outConn);
 
     [LibraryImport(Lib)]
     [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-    internal static partial int qm_session_state(IntPtr session);
+    internal static partial int qm_engine_listen(IntPtr engine, byte* bind, QmSecurity* sec, int enableData);
 
     [LibraryImport(Lib)]
     [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
-    internal static partial void qm_session_stop(IntPtr session);
+    internal static partial int qm_engine_open_stream(
+        IntPtr engine, ulong conn, int codec, uint bitrate, int active, out ushort outStream);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_add_capture_stream(
+        IntPtr engine, ulong conn, int codec, uint bitrate, int active, out ushort outStream);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_bind_playback(IntPtr engine, ulong conn, ushort stream);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_set_stream_active(IntPtr engine, ulong conn, ushort stream, int active);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_close_stream(IntPtr engine, ulong conn, ushort stream);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_add_route(
+        IntPtr engine, ulong srcConn, ushort srcStream, ulong dstConn, ushort dstStream);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_remove_route(
+        IntPtr engine, ulong srcConn, ushort srcStream, ulong dstConn, ushort dstStream);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_send_data(IntPtr engine, ulong conn, byte* data, nuint len);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_close_connection(IntPtr engine, ulong conn);
+
+    [LibraryImport(Lib)]
+    [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
+    internal static partial int qm_engine_connection_stats(IntPtr engine, ulong conn, out QmConnStats outStats);
 
     [LibraryImport(Lib)]
     [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]

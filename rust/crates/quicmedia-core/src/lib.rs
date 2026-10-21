@@ -1,38 +1,45 @@
 //! # quicmedia-core
 //!
-//! A QUIC-based real-time audio + data transport. The full media path lives in
-//! native code: capture → Opus encode → QUIC DATAGRAM → jitter buffer → decode
-//! → render. A reliable generic data channel rides the same QUIC connection on
-//! a bidirectional stream. The crate is consumed from C# through the thin C ABI
-//! in `quicmedia-ffi`; media bytes never cross the managed boundary.
+//! A QUIC-based real-time audio engine. One [`Engine`] owns many QUIC
+//! connections, each carrying several logical audio streams (encoded packets in
+//! unreliable datagrams) plus a reliable control channel. The engine can act as
+//! a capturing client, a decoding receiver, or an SFU that forwards encoded
+//! packets between connections natively — all driven by a control-plane API
+//! while media stays in native code and never crosses the managed boundary.
 //!
 //! ## Layout
-//! * [`config`] — session configuration.
+//! * [`config`] — configuration types.
 //! * [`security`] — TLS 1.3 material and the pluggable peer verifier.
-//! * [`transport`] — quinn endpoint setup and connection establishment.
-//! * [`framing`] — the compact RTP-like datagram header.
+//! * [`transport`] — quinn endpoint setup (client dial, server accept).
+//! * [`framing`] — the compact RTP-like datagram header (with `stream_id`).
+//! * [`control`] — the reliable stream-management protocol.
 //! * [`jitter`] — the playout / jitter buffer.
 //! * [`codec`] — Opus (feature `opus-codec`) and PCM passthrough.
 //! * [`audio`] — native capture/render backends (null + miniaudio).
 //! * [`datachannel`] — the reliable data channel tasks.
-//! * [`session`] — the orchestrator and public [`Session`] handle.
+//! * [`conn`] — one QUIC connection as encoded-packet transport + control.
+//! * [`engine`] — the multi-connection engine, native routing, and audio hub.
 
 pub mod audio;
 pub mod codec;
 pub mod config;
+pub mod conn;
+pub mod control;
 pub mod datachannel;
+pub mod engine;
 mod error;
 pub mod framing;
 pub mod jitter;
 pub mod security;
-pub mod session;
 pub mod transport;
 
 pub use config::{
-    AudioBackendKind, AudioParams, CodecKind, Config, PeerVerification, Role, SecurityConfig,
+    AudioBackendKind, AudioParams, CodecKind, PeerVerification, Role, SecurityConfig,
 };
+pub use conn::ConnId;
+pub use engine::{Engine, EngineEvents, StreamParams};
 pub use error::{Error, Result};
-pub use session::{ConnectionState, Events, Session, Stats};
+pub use framing::StreamId;
 
 /// Default ALPN protocol identifier for this transport.
 pub const DEFAULT_ALPN: &[u8] = b"rea-qm/1";

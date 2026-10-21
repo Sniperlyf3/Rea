@@ -23,6 +23,23 @@ pub trait Codec: Send {
     fn decode(&mut self, data: Option<&[u8]>, out: &mut Vec<i16>) -> Result<()>;
 }
 
+/// Map a codec kind to its on-wire payload type.
+pub fn payload_type(kind: CodecKind) -> u8 {
+    match kind {
+        CodecKind::Opus => crate::framing::PT_OPUS,
+        CodecKind::Passthrough => crate::framing::PT_PCM,
+    }
+}
+
+/// Map an on-wire payload type back to a codec kind.
+pub fn codec_kind_from_payload_type(pt: u8) -> Option<CodecKind> {
+    match pt {
+        crate::framing::PT_OPUS => Some(CodecKind::Opus),
+        crate::framing::PT_PCM => Some(CodecKind::Passthrough),
+        _ => None,
+    }
+}
+
 /// Build the codec requested by `params`, honouring compiled features.
 pub fn make_codec(params: &AudioParams) -> Result<Box<dyn Codec>> {
     match params.codec {
